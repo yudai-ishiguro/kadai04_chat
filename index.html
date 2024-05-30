@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チャットアプリ</title>
+    <style>.remove:hover{background:aquamarine;}</style>
+</head>
+<body>
+
+    <!-- コンテンツ表示画面 -->
+    <div>
+        <div>
+            名前：<input type="text" id="uname" placeholder="your name">
+        </div>
+        <div>
+            <textarea id="text" cols="30" rows="10" placeholder="chat message"></textarea>
+            <button id="send">送信</button>
+        </div>
+        <div id="output" style="overflow: auto;height: 300px;"></div>
+    </div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script type="module">
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
+import { getDatabase, ref, push, set, update, remove, onChildAdded, onChildChanged, onChildRemoved } 
+from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAHrqkXedzi8dlCDxjnVCrutUg6EGYPIhY",
+    authDomain: "sample-f043b.firebaseapp.com",
+    projectId: "sample-f043b",
+    storageBucket: "sample-f043b.appspot.com",
+    messagingSenderId: "544596555592",
+    appId: "1:544596555592:web:ad92a1ab91742040e6657d"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app); //RealtimeDBに接続
+const dbRef = ref(db,"chat"); //RealtimeDB内の"chat"を使う
+
+// Google Apps ScriptのURLを追加（5.26AM8:30）
+const scriptUrl = 'https://script.google.com/macros/s/AKfycbwcXXRPF_kxFb5Jpp6mLeDVDbVZeIRLSpJVKs7k2k61X119D_yJ97hYJAAXHVLlnKd6kw/exec';
+
+//データ登録(Click)
+$("#send").on("click",function() {
+    const msg = {
+        uname: $("#uname").val(),
+        text: $("#text").val()
+    }
+    const newPostRef = push(dbRef); //ユニークKEYを生成
+    set(newPostRef, msg);           //"chat"にユニークKEYをつけてオブジェクトデータを登録
+    $("#text").val("");
+});
+
+
+// エンター入力を無効化（5.26AM8:30）
+//データ登録(Enter)
+// $("#text").on("keydown",function(e){
+//     console.log(e);        //e変数の中身を確認！！
+//     if(e.keyCode == 13){   //EnterKey=13
+//         const msg = {
+//             uname: $("#uname").val(),
+//             text: $("#text").val()
+//         }
+//         const newPostRef = push(dbRef); //ユニークKEYを生成
+//         set(newPostRef, msg);           //"chat"にユニークKEYをつけてオブジェクトデータを登録
+//     }
+// });
+
+//最初にデータ取得＆onSnapshotでリアルタイムにデータを取得
+onChildAdded(dbRef, function(data){   
+    const msg  = data.val();    //オブジェクトデータを取得し、変数msgに代入
+    const key  = data.key;      //データのユニークキー（削除や更新に使用可能）
+
+// 翻訳リクエストの送信を追加（5.26AM8:30）
+    $.ajax({
+        url: scriptUrl,
+        type: 'GET',
+        data: {
+            text: msg.text,
+            // source: "en", // 翻訳元の言語コードを指定（例: 英語）
+            target: "ja"  // 翻訳先の言語コードを指定（例: 日本語）
+        },
+        success: function(response) {
+            // 翻訳されたテキストを表示
+            let translatedText = response.text;
+            let html = '<p id="'+key+'">';
+            html += msg.uname + '<br>';
+            html += '<span contentEditable="true" id="'+key+'_update">' +msg.text+'</span>';
+            html += '<span class="remove" data-key="'+key+'">🚮</span>'
+            html += '<span class="update" data-key="'+key+'">🆙</span>' + '<br>';
+            html += "「" 
+            html += '<span contentEditable="true" id="'+key+'_translate">' +translatedText+ '</span>';
+            html +=  "」";
+            html += '</p>';
+            $("#output").append(html);
+        },
+        error: function() {
+            console.error("翻訳リクエストに失敗しました。");
+        }
+    });
+});
+// 下記はオリジナル部分（コメントアウト）
+    // //表示用テキスト・HTMLを作成
+    // let h = '<p>';
+    //     h += msg.uname;
+    //     h += '<br>';
+    //     h += msg.text;
+    //     h += '</p>';
+    //     $("#output").append(h); //#outputの最後に追加
+// });
+
+// 削除イベント
+$("#output").on("click", ".remove", function(){
+    const key = $(this).attr("data-key");
+    const remove_item = ref(db, "chat/"+key);
+    remove(remove_item);
+})
+
+// 更新イベント
+$("#output").on("click", ".update", function(){
+    const key = $(this).attr("data-key");
+    update(ref(db, "chat/"+key),{
+        text: $("#"+key+'_update').html()
+    });
+})
+
+onChildRemoved(dbRef, (data) =>{
+    $("#"+data.key).remove();
+});
+
+onChildChanged(dbRef, (data) =>{
+    const updatedText = data.val().text;
+
+// 翻訳リクエストを送信して更新されたテキストを取得
+    $.ajax({
+        url: scriptUrl,
+        type: 'GET',
+        data: {
+            text: updatedText,
+            // source: "en", // 翻訳元の言語コードを指定（例: 英語）
+            target: "ja"  // 翻訳先の言語コードを指定（例: 日本語）
+        },
+    success: function(response) {
+        let translatedText = response.text;
+        // 更新されたテキストを表示    
+        $("#"+data.key+'_update').html(updatedText);
+        $("#"+data.key+'_translate').html(translatedText);
+        $("#"+data.key+'_update').fadeOut(800).fadeIn(800);
+        $("#"+data.key+'_translate').fadeOut(800).fadeIn(800);  
+        },
+    error: function() {
+        console.error("翻訳リクエストに失敗しました。");
+    }
+  });
+});
+
+</script>
+</body>
+</html>
