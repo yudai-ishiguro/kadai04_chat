@@ -5,7 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>チャットアプリ</title>
-    <style>.remove:hover{background:aquamarine;}</style>
+    <!-- <style>.remove:hover{background:aquamarine;}</style> -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -18,7 +19,7 @@
             <textarea id="text" cols="30" rows="10" placeholder="chat message"></textarea>
             <button id="send">送信</button>
         </div>
-        <div id="output" style="overflow: auto;height: 300px;"></div>
+        <div id="output"></div>
     </div>
 
 
@@ -30,12 +31,13 @@ import { getDatabase, ref, push, set, update, remove, onChildAdded, onChildChang
 from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyAHrqkXedzi8dlCDxjnVCrutUg6EGYPIhY",
-    authDomain: "sample-f043b.firebaseapp.com",
-    projectId: "sample-f043b",
-    storageBucket: "sample-f043b.appspot.com",
-    messagingSenderId: "544596555592",
-    appId: "1:544596555592:web:ad92a1ab91742040e6657d"
+    apiKey: "",
+    authDomain: "",
+    databaseURL: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
 };
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app); //RealtimeDBに接続
@@ -87,7 +89,7 @@ onChildAdded(dbRef, function(data){
         success: function(response) {
             // 翻訳されたテキストを表示
             let translatedText = response.text;
-            let html = '<p id="'+key+'">';
+            let html = '<div class="msg"><p id="'+key+'">';
             html += msg.uname + '<br>';
             html += '<span contentEditable="true" id="'+key+'_update">' +msg.text+'</span>';
             html += '<span class="remove" data-key="'+key+'">🚮</span>'
@@ -95,7 +97,7 @@ onChildAdded(dbRef, function(data){
             html += "「" 
             html += '<span contentEditable="true" id="'+key+'_translate">' +translatedText+ '</span>';
             html +=  "」";
-            html += '</p>';
+            html += '</p></div>';
             $("#output").append(html);
         },
         error: function() {
@@ -113,12 +115,29 @@ onChildAdded(dbRef, function(data){
     //     $("#output").append(h); //#outputの最後に追加
 // });
 
-// 削除イベント
+// 削除イベント（オリジナル）
+// $("#output").on("click", ".remove", function(){
+//     const key = $(this).attr("data-key");
+//     const remove_item = ref(db, "chat/"+key);
+
+//     remove(remove_item);
+//     location.reload();// あとから追加した
+// });
+
+// 削除イベント（メッセージを出す）
 $("#output").on("click", ".remove", function(){
     const key = $(this).attr("data-key");
-    const remove_item = ref(db, "chat/"+key);
-    remove(remove_item);
-})
+    const update_item = ref(db, "chat/"+key);
+    update(update_item,{
+        text: "Deleted Message"
+    }).then(() => {
+        location.reload();
+    }).catch((error) => {
+        console.error("Error updating message: ",error);
+    });
+});
+
+
 
 // 更新イベント
 $("#output").on("click", ".update", function(){
@@ -129,7 +148,7 @@ $("#output").on("click", ".update", function(){
 })
 
 onChildRemoved(dbRef, (data) =>{
-    $("#"+data.key).remove();
+$("#"+data.key).remove();
 });
 
 onChildChanged(dbRef, (data) =>{
